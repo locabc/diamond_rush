@@ -29,6 +29,65 @@ async function main() {
     const Config = await lib.org.recompile.freej2me.Config;
     await javaToKv(Config.DEFAULT_SETTINGS, defaultSettings);
 
+    // --- BẮT ĐẦU: ĐOẠN CODE TỰ ĐỘNG CÀI GAME ---
+    try {
+        // Kiểm tra xem đã có game nào cài chưa bằng cách đọc file danh sách ảo
+        let appsListBlob = await cjFileBlob("/files/apps.list");
+        let hasGames = false;
+        
+        if (appsListBlob) {
+            let content = await appsListBlob.text();
+            if (content.trim().length > 0) hasGames = true;
+        }
+
+        // Nếu chưa có game nào (người dùng mới), tự động tải game.jar về cài
+        if (!hasGames) {
+            console.log("Chưa có game, đang tự động cài game.jar...");
+            
+            // 1. Tải file game.jar từ thư mục web
+            const res = await fetch('game.jar');
+            
+            if (res.ok) {
+                const buffer = await res.arrayBuffer();
+                
+                // 2. Tạo file ảo trong CheerpJ
+                const File = await lib.java.io.File;
+                const tempJar = await new File("/files/_tmp/autoinstall.jar");
+                // Copy dữ liệu vào file ảo
+                await launcherUtil.copyJar(new Int8Array(buffer), tempJar);
+                
+                // 3. Đọc thông tin file JAR (để lấy tên, ID)
+                const MIDletLoader = await lib.org.recompile.mobile.MIDletLoader;
+                const loader = await MIDletLoader.getMIDletLoader(tempJar);
+                
+                // Nếu game không có tên, đặt tên mặc định là Diamond Rush
+                if (!loader.name) loader.name = "Diamond Rush";
+                await launcherUtil.ensureAppId(loader, "Diamond Rush");
+
+                // 4. Chuẩn bị cấu hình mặc định
+                const jsettings = await kvToJava(defaultSettings);
+                const jappProps = await kvToJava({}); // Các thuộc tính rỗng
+                const jsysProps = await kvToJava({});
+
+                // 5. Tiến hành cài đặt game vào danh sách
+                await launcherUtil.initApp(
+                    tempJar, 
+                    loader, 
+                    jsettings, 
+                    jappProps, 
+                    jsysProps
+                );
+                
+                console.log("Đã cài đặt Diamond Rush thành công!");
+            } else {
+                console.warn("Không tìm thấy file game.jar để cài tự động.");
+            }
+        }
+    } catch (e) {
+        console.error("Lỗi khi tự động cài game:", e);
+    }
+    // --- KẾT THÚC: ĐOẠN CODE TỰ ĐỘNG CÀI GAME ---
+
     await reloadUI();
 
     document.getElementById("loading").style.display = "none";
