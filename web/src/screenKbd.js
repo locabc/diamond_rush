@@ -20,7 +20,8 @@ function activateKey(key) {
     if (key && !key.classList.contains('active')) {
         key.classList.add('active');
         if (handleKey) {
-            handleKey(true, key.dataset.key);
+            const name = normalizeKeyName(key.dataset.key);
+            handleKey(true, name);
         }
     }
 }
@@ -29,9 +30,19 @@ function deactivateKey(key) {
     if (key && key.classList.contains('active')) {
         key.classList.remove('active');
         if (handleKey) {
-            handleKey(false, key.dataset.key);
+            const name = normalizeKeyName(key.dataset.key);
+            handleKey(false, name);
         }
     }
+}
+
+function normalizeKeyName(name) {
+    if (!name) return name;
+    // Accept multiple synonyms for the '*' key and map to the DOM code
+    if (name === 'NumpadAsterisk' || name === 'NumpadStar' || name === 'NumpadMultiply') {
+        return 'NumpadMultiply';
+    }
+    return name;
 }
 
 // Handle touch start
